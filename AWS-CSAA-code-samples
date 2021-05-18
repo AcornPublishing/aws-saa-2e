@@ -1,0 +1,95 @@
+
+
+Chapter 2:
+Launch a single EC2 instance (AMI, security group, and subnet IDs left out):
+
+aws ec2 run-instances --image-id ami-xxxxxxxx --count 1 \
+--instance-type t2.micro --key-name MyKeyPair \
+--security-group-ids sg-xxxxxxxx --subnet-id subnet-xxxxxxxx \
+--user-data file://my_script.sh \
+--tag-specifications \
+'ResourceType=instance,Tags=[{Key=webserver,Value=production}]' \
+'ResourceType=volume,Tags=[{Key=cost-center,Value=cc123}]'
+
+
+Chapter 3:
+Commands and policy rules necessary to copy the files in a local directory (named "sales-docs" here) to an S3 bucket and set a lifecycle configuration for the bucket.
+
+$ aws s3 mb s3://bucket-name
+$ aws s3 cp --recursive sales-docs/ s3://bucket-name 
+$ aws s3api get-bucket-lifecycle-configuration \
+   --bucket bucket-name
+$ aws s3api put-bucket-lifecycle-configuration \
+   --bucket bucket-name \
+   --lifecycle-configuration '{
+    "Rules": [
+        {
+            "Filter": {
+                "Prefix": "sales-docs/"
+            },
+            "Status": "Enabled",
+            "Transitions": [
+                {
+                    "Days": 30,
+                    "StorageClass": "STANDARD_IA"
+                },
+                {
+                    "Days": 60,
+                    "StorageClass": "GLACIER"
+                }
+            ],
+            "Expiration": {
+                "Days": 365
+            },
+            "ID": "Lifecycle for bucket objects."
+        }
+    ]
+}'
+$ aws s3api get-bucket-lifecycle-configuration \
+   --bucket bucket-name
+
+Chapter 6:
+The command to attach a resource access policy to an IAM user followed by an example of the AmazonEC2ReadOnlyAccess policy itself.
+
+$ aws iam attach-user-policy \
+   --policy-arn arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess \
+   --user-name steve
+
+Here's the `AmazonEC2ReadOnlyAccess` policy itself in JSON format:
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "ec2:Describe*",
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "elasticloadbalancing:Describe*",
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:ListMetrics",
+                "cloudwatch:GetMetricStatistics",
+                "cloudwatch:Describe*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "autoscaling:Describe*",
+            "Resource": "*"
+        }
+    ]
+}
+
+Chapter 10:
+Enable transfer acceleration on an existing S3 bucket.
+
+$ aws s3api put-bucket-accelerate-configuration \
+  --bucket my-bucket-name \
+  --accelerate-configuration Status=Enabled
